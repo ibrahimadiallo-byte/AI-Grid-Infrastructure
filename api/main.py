@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from api.config import settings
 from api.ercot_client import ERCOTClient
 from api.isone_client import ISONeClient
+from api.logic_engine import evaluate_texas_grid, evaluate_maine_grid
 
 ercot = ERCOTClient()
 isone = ISONeClient()
@@ -93,3 +94,27 @@ async def isone_demand():
         return await isone.get_hourly_demand()
     except Exception as exc:
         raise HTTPException(status_code=502, detail=str(exc))
+
+
+# ─── Grid Logic & Throttle ───────────────────────────────────────────────────
+
+@app.get("/grid/status", tags=["Logic Engine"])
+async def grid_status(
+    texas_freq: float = 60.0,
+    maine_gas_mix: float = 40.0,
+    maine_price: float = 50.0
+):
+    """
+    Evaluates current grid conditions for ERCOT and ISO-NE and returns 
+    the logic engine decision.
+    (Parameters are currently query args for mock/testing purposes until 
+    the live data bridges are fully connected).
+    """
+    texas_eval = evaluate_texas_grid(frequency=texas_freq)
+    maine_eval = evaluate_maine_grid(gas_mix_percentage=maine_gas_mix, price_mwh=maine_price)
+    
+    return {
+        "texas": texas_eval,
+        "maine": maine_eval
+    }
+
