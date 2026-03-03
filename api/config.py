@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     ercot_subscription_key_secondary: str = ""
     ercot_username: str = ""
     ercot_password: str = ""
+    ercot_client_id: str = ""
+    ercot_token_url: str = "https://ercotb2c.b2clogin.com/ercotb2c.onmicrosoft.com/B2C_1_PUBAPI-ROPC-FLOW/oauth2/v2.0/token"
+    ercot_frequency_endpoint: str = ""
     ercot_base_url: str = "https://api.ercot.com/api/public-reports"
 
     # ISO-NE
