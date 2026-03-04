@@ -129,32 +129,28 @@ SHARED_CSS = """
 def render_metric_card(value: str, label: str, sub: str = ""):
     """Render a styled metric card."""
     sub_html = f'<div class="metric-sub">{sub}</div>' if sub else ""
-    st.markdown(f"""
-    <div class="metric-card">
-        <div class="metric-value">{value}</div>
-        <div class="metric-label">{label}</div>
-        {sub_html}
-    </div>
-    """, unsafe_allow_html=True)
+    html = (
+        '<div class="metric-card">'
+        f'<div class="metric-value">{value}</div>'
+        f'<div class="metric-label">{label}</div>'
+        f'{sub_html}</div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def render_fuel_bar(name: str, pct: float, mw: int, color: str, marginal: bool = False):
     """Render a horizontal fuel mix bar."""
     tag = " ⚡ MARGINAL" if marginal else ""
     width = max(pct, 2)
-    st.markdown(f"""
-    <div class="fuel-bar-container">
-        <div class="fuel-bar-label">
-            <span>{name}{tag}</span>
-            <span>{mw:,} MW ({pct:.1f}%)</span>
-        </div>
-        <div class="fuel-bar-track">
-            <div class="fuel-bar-fill" style="width: {width}%; background: {color};">
-                {pct:.1f}%
-            </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    html = (
+        '<div class="fuel-bar-container">'
+        '<div class="fuel-bar-label">'
+        f'<span>{name}{tag}</span><span>{mw:,} MW ({pct:.1f}%)</span></div>'
+        '<div class="fuel-bar-track">'
+        f'<div class="fuel-bar-fill" style="width:{width}%;background:{color};">{pct:.1f}%</div>'
+        '</div></div>'
+    )
+    st.markdown(html, unsafe_allow_html=True)
 
 
 def render_data_center_mock(state_name: str, throttled: bool, reduction_pct: int = 25):
@@ -173,16 +169,14 @@ def render_data_center_mock(state_name: str, throttled: bool, reduction_pct: int
         status_text = "✅ NORMAL — Full capacity"
         status_class = "dc-card-active"
 
-    st.markdown(f"""
-    <div class="dc-card {status_class}">
-        <div style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.5rem;">
-            🖥️ {state_name} Data Center (Mock)
-        </div>
-        <div style="font-size: 0.85rem; color: #94a3b8; margin-bottom: 0.8rem;">
-            {status_text}
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    dc_html = (
+        f'<div class="dc-card {status_class}">'
+        '<div style="font-size:1.1rem;font-weight:700;margin-bottom:0.5rem;">'
+        f'🖥️ {state_name} Data Center (Mock)</div>'
+        f'<div style="font-size:0.85rem;color:#94a3b8;margin-bottom:0.8rem;">{status_text}</div>'
+        '</div>'
+    )
+    st.markdown(dc_html, unsafe_allow_html=True)
 
     col_a, col_b, col_c = st.columns(3)
     with col_a:

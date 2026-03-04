@@ -167,32 +167,27 @@ def render():
                 status_emoji = "🟢"
                 status_text = "HEALTHY — Grid frequency within normal range"
 
-            st.markdown(f"""
-            <div class="metric-card" style="text-align: left;">
-                <div style="font-size: 1rem; font-weight: 700; margin-bottom: 0.6rem;">
-                    {status_emoji} {status_text}
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.3rem;">
-                    <span>59.90 Hz (Blackout Risk)</span>
-                    <span>60.05 Hz (Ideal)</span>
-                </div>
-                <div style="background: #334155; border-radius: 8px; height: 32px; overflow: hidden; position: relative;">
-                    <div style="width: {bar_pct:.1f}%; height: 100%; background: {bar_color}; border-radius: 8px;
-                                display: flex; align-items: center; justify-content: center;
-                                font-weight: 700; font-size: 0.85rem; color: white; min-width: 80px;">
-                        {freq_hz:.4f} Hz
-                    </div>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.8rem; color: #94a3b8;">
-                    <span>Threshold: {FREQUENCY_THRESHOLD_HZ} Hz</span>
-                    <span>Delta: {delta:+.4f} Hz</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            freq_gauge_html = (
+                '<div class="metric-card" style="text-align:left;">'
+                '<div style="font-size:1rem;font-weight:700;margin-bottom:0.6rem;">'
+                f'{status_emoji} {status_text}</div>'
+                '<div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.3rem;">'
+                '<span>59.90 Hz (Blackout Risk)</span><span>60.05 Hz (Ideal)</span></div>'
+                '<div style="background:#334155;border-radius:8px;height:32px;overflow:hidden;position:relative;">'
+                f'<div style="width:{bar_pct:.1f}%;height:100%;background:{bar_color};border-radius:8px;'
+                'display:flex;align-items:center;justify-content:center;'
+                f'font-weight:700;font-size:0.85rem;color:white;min-width:80px;">'
+                f'{freq_hz:.4f} Hz</div></div>'
+                '<div style="display:flex;justify-content:space-between;margin-top:0.5rem;font-size:0.8rem;color:#94a3b8;">'
+                f'<span>Threshold: {FREQUENCY_THRESHOLD_HZ} Hz</span>'
+                f'<span>Delta: {delta:+.4f} Hz</span></div>'
+                '</div>'
+            )
+            st.markdown(freq_gauge_html, unsafe_allow_html=True)
 
         st.markdown("")
 
-        # System conditions from HTML
+        # System conditions from HTML scraper
         conditions_data = []
         if current_load is not None:
             conditions_data.append(("⚡ Current System Load", f"{current_load:,.0f} MW"))
@@ -214,64 +209,51 @@ def render():
             if current_load is not None and total_gen is not None and total_gen > 0:
                 usage_pct = (current_load / total_gen * 100)
                 bar_color = "#22c55e" if usage_pct < 75 else "#f59e0b" if usage_pct < 90 else "#ef4444"
-                st.markdown(f"""
-                <div class="metric-card" style="text-align: left; margin-bottom: 0.8rem;">
-                    <div style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem;">
-                        Load vs Generation Capacity
-                    </div>
-                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.3rem;">
-                        <span>0 MW</span>
-                        <span>{total_gen:,.0f} MW (Max Capacity)</span>
-                    </div>
-                    <div style="background: #334155; border-radius: 8px; height: 28px; overflow: hidden;">
-                        <div style="width: {usage_pct:.1f}%; height: 100%; background: {bar_color}; border-radius: 8px;
-                                    display: flex; align-items: center; justify-content: center;
-                                    font-weight: 700; font-size: 0.8rem; color: white; min-width: 100px;">
-                            {current_load:,.0f} MW ({usage_pct:.0f}%)
-                        </div>
-                    </div>
-                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">
-                        {'🟢 Healthy reserves' if usage_pct < 75 else '🟡 Reserves tightening' if usage_pct < 90 else '🔴 Critical — blackout risk'}
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                reserve_label = "🟢 Healthy reserves" if usage_pct < 75 else "🟡 Reserves tightening" if usage_pct < 90 else "🔴 Critical — blackout risk"
+                cap_bar_html = (
+                    '<div class="metric-card" style="text-align:left;margin-bottom:0.8rem;">'
+                    '<div style="font-size:0.9rem;font-weight:700;margin-bottom:0.5rem;">Load vs Generation Capacity</div>'
+                    '<div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:0.3rem;">'
+                    f'<span>0 MW</span><span>{total_gen:,.0f} MW (Max Capacity)</span></div>'
+                    '<div style="background:#334155;border-radius:8px;height:28px;overflow:hidden;">'
+                    f'<div style="width:{usage_pct:.1f}%;height:100%;background:{bar_color};border-radius:8px;'
+                    'display:flex;align-items:center;justify-content:center;'
+                    f'font-weight:700;font-size:0.8rem;color:white;min-width:100px;">'
+                    f'{current_load:,.0f} MW ({usage_pct:.0f}%)</div></div>'
+                    f'<div style="font-size:0.75rem;color:#94a3b8;margin-top:0.3rem;">{reserve_label}</div>'
+                    '</div>'
+                )
+                st.markdown(cap_bar_html, unsafe_allow_html=True)
 
+            # Conditions table rows
             rows_html = ""
             for label, value in conditions_data:
-                rows_html += f"""
-                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0;
-                            border-bottom: 1px solid #334155;">
-                    <span>{label}</span>
-                    <span style="font-weight: 700;">{value}</span>
-                </div>
-                """
-            st.markdown(f"""
-            <div class="metric-card" style="text-align: left;">
-                {rows_html}
-            </div>
-            """, unsafe_allow_html=True)
+                rows_html += (
+                    '<div style="display:flex;justify-content:space-between;padding:0.5rem 0;'
+                    'border-bottom:1px solid #334155;">'
+                    f'<span>{label}</span>'
+                    f'<span style="font-weight:700;">{value}</span>'
+                    '</div>'
+                )
+            table_html = f'<div class="metric-card" style="text-align:left;">{rows_html}</div>'
+            st.markdown(table_html, unsafe_allow_html=True)
 
     with right_col:
         st.markdown("### 💰 Settlement Point Prices")
         avg_price = prices.get("hub_avg_price", 0)
         top_prices = prices.get("prices", [])
 
-        # Price summary card
-        st.markdown(f"""
-        <div class="metric-card" style="text-align: left;">
-            <div style="font-size: 0.9rem; margin-bottom: 0.8rem;">
-                <strong>ERCOT Real-Time SPP</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #334155;">
-                <span>📊 Avg Price</span>
-                <span style="font-weight: 700;">${avg_price:.2f}/MWh</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #334155;">
-                <span>📍 Nodes Sampled</span>
-                <span style="font-weight: 700;">{prices.get('num_nodes', 0)}</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        num_nodes = prices.get('num_nodes', 0)
+        price_card_html = (
+            '<div class="metric-card" style="text-align:left;">'
+            '<div style="font-size:0.9rem;margin-bottom:0.8rem;"><strong>ERCOT Real-Time SPP</strong></div>'
+            '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid #334155;">'
+            f'<span>📊 Avg Price</span><span style="font-weight:700;">${avg_price:.2f}/MWh</span></div>'
+            '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid #334155;">'
+            f'<span>📍 Nodes Sampled</span><span style="font-weight:700;">{num_nodes}</span></div>'
+            '</div>'
+        )
+        st.markdown(price_card_html, unsafe_allow_html=True)
 
         # Top settlement points
         if top_prices:
@@ -284,21 +266,20 @@ def render():
 
         st.markdown("")
         st.markdown("### 🎯 Reliability Mode Rules")
-        st.markdown(f"""
-        <div class="metric-card" style="text-align: left; font-size: 0.9rem;">
-            <div style="padding: 0.3rem 0;">
-                {"🔴" if freq.get("below_threshold") else "⚪"} Frequency < {FREQUENCY_THRESHOLD_HZ} Hz →
-                currently <strong>{f"{freq_hz:.4f} Hz" if freq_hz is not None else "N/A"}</strong>
-            </div>
-            <div style="padding: 0.5rem 0 0.2rem; border-top: 1px solid #334155; margin-top: 0.3rem;">
-                Trigger = <strong>Reduce data center load {RELIABILITY_REDUCTION_PCT}%</strong>
-            </div>
-            <div style="padding: 0.3rem 0; font-size: 0.8rem; color: #94a3b8;">
-                Why? Low frequency = demand exceeding supply.<br>
-                Without intervention → rolling blackouts.
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        freq_icon = "🔴" if freq.get("below_threshold") else "⚪"
+        freq_display = f"{freq_hz:.4f} Hz" if freq_hz is not None else "N/A"
+        rules_html = (
+            '<div class="metric-card" style="text-align:left;font-size:0.9rem;">'
+            f'<div style="padding:0.3rem 0;">{freq_icon} Frequency &lt; {FREQUENCY_THRESHOLD_HZ} Hz → '
+            f'currently <strong>{freq_display}</strong></div>'
+            '<div style="padding:0.5rem 0 0.2rem;border-top:1px solid #334155;margin-top:0.3rem;">'
+            f'Trigger = <strong>Reduce data center load {RELIABILITY_REDUCTION_PCT}%</strong></div>'
+            '<div style="padding:0.3rem 0;font-size:0.8rem;color:#94a3b8;">'
+            'Why? Low frequency = demand exceeding supply.<br>'
+            'Without intervention → rolling blackouts.</div>'
+            '</div>'
+        )
+        st.markdown(rules_html, unsafe_allow_html=True)
 
     # ── Data Center Response ──
     st.markdown("---")

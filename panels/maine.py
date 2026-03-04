@@ -161,49 +161,38 @@ def render():
         congestion = lmp.get("congestion_component", 0)
         loss = lmp.get("loss_component", 0)
 
-        st.markdown(f"""
-        <div class="metric-card" style="text-align: left;">
-            <div style="font-size: 0.9rem; margin-bottom: 0.8rem;">
-                <strong>LMP Breakdown for Maine (.Z.MAINE)</strong>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #334155;">
-                <span>⚡ Energy</span>
-                <span style="font-weight: 700;">${energy:.2f}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #334155;">
-                <span>🚧 Congestion</span>
-                <span style="font-weight: 700;">${congestion:.2f}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #334155;">
-                <span>📉 Loss</span>
-                <span style="font-weight: 700;">${loss:.2f}</span>
-            </div>
-            <div style="display: flex; justify-content: space-between; padding: 0.6rem 0 0.2rem; font-size: 1.1rem;">
-                <span style="font-weight: 700;">Total LMP</span>
-                <span style="font-weight: 800; color: {'#ef4444' if lmp.get('price_above_threshold') else '#22c55e'};">
-                    ${price:.2f}/MWh
-                </span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        price_color = '#ef4444' if lmp.get('price_above_threshold') else '#22c55e'
+        lmp_html = (
+            '<div class="metric-card" style="text-align:left;">'
+            '<div style="font-size:0.9rem;margin-bottom:0.8rem;"><strong>LMP Breakdown for Maine (.Z.MAINE)</strong></div>'
+            '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid #334155;">'
+            f'<span>⚡ Energy</span><span style="font-weight:700;">${energy:.2f}</span></div>'
+            '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid #334155;">'
+            f'<span>🚧 Congestion</span><span style="font-weight:700;">${congestion:.2f}</span></div>'
+            '<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid #334155;">'
+            f'<span>📉 Loss</span><span style="font-weight:700;">${loss:.2f}</span></div>'
+            '<div style="display:flex;justify-content:space-between;padding:0.6rem 0 0.2rem;font-size:1.1rem;">'
+            f'<span style="font-weight:700;">Total LMP</span>'
+            f'<span style="font-weight:800;color:{price_color};">${price:.2f}/MWh</span></div>'
+            '</div>'
+        )
+        st.markdown(lmp_html, unsafe_allow_html=True)
 
         st.markdown("")
         st.markdown("### 🎯 Green Mode Rules")
-        st.markdown(f"""
-        <div class="metric-card" style="text-align: left; font-size: 0.9rem;">
-            <div style="padding: 0.3rem 0;">
-                {"🔴" if fm.get("gas_above_threshold") else "⚪"} Gas > {GAS_THRESHOLD_PCT}% →
-                currently <strong>{gas_pct:.1f}%</strong>
-            </div>
-            <div style="padding: 0.3rem 0;">
-                {"🔴" if lmp.get("price_above_threshold") else "⚪"} Price > ${PRICE_THRESHOLD_MWH:.0f} →
-                currently <strong>${price:.2f}</strong>
-            </div>
-            <div style="padding: 0.5rem 0 0.2rem; border-top: 1px solid #334155; margin-top: 0.3rem;">
-                Either trigger = <strong>Reduce data center load 25%</strong>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+        gas_icon = "🔴" if fm.get("gas_above_threshold") else "⚪"
+        price_icon = "🔴" if lmp.get("price_above_threshold") else "⚪"
+        rules_html = (
+            '<div class="metric-card" style="text-align:left;font-size:0.9rem;">'
+            f'<div style="padding:0.3rem 0;">{gas_icon} Gas &gt; {GAS_THRESHOLD_PCT}% → '
+            f'currently <strong>{gas_pct:.1f}%</strong></div>'
+            f'<div style="padding:0.3rem 0;">{price_icon} Price &gt; ${PRICE_THRESHOLD_MWH:.0f} → '
+            f'currently <strong>${price:.2f}</strong></div>'
+            '<div style="padding:0.5rem 0 0.2rem;border-top:1px solid #334155;margin-top:0.3rem;">'
+            'Either trigger = <strong>Reduce data center load 25%</strong></div>'
+            '</div>'
+        )
+        st.markdown(rules_html, unsafe_allow_html=True)
 
     # ── Data Center Response ──
     st.markdown("---")
@@ -226,28 +215,22 @@ def render():
             # Current vs Peak bar
             load_bar_pct = min(100, pct_of_peak) if peak > 0 else 0
             load_bar_color = "#22c55e" if load_bar_pct < 80 else "#f59e0b" if load_bar_pct < 95 else "#ef4444"
+            peak_status = "🟢 Well below peak" if pct_of_peak < 80 else "🟡 Approaching peak demand" if pct_of_peak < 95 else "🔴 At or above peak — grid under stress"
 
-            st.markdown(f"""
-            <div class="metric-card" style="text-align: left;">
-                <div style="font-size: 1rem; font-weight: 700; margin-bottom: 0.6rem;">
-                    📈 Current Load vs Today's Forecasted Peak
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.3rem;">
-                    <span>0 MW</span>
-                    <span>{peak:,.0f} MW (Peak)</span>
-                </div>
-                <div style="background: #334155; border-radius: 8px; height: 32px; overflow: hidden;">
-                    <div style="width: {load_bar_pct:.1f}%; height: 100%; background: {load_bar_color}; border-radius: 8px;
-                                display: flex; align-items: center; justify-content: center;
-                                font-weight: 700; font-size: 0.85rem; color: white; min-width: 100px;">
-                        {current_load:,.0f} MW ({pct_of_peak:.0f}%)
-                    </div>
-                </div>
-                <div style="font-size: 0.8rem; color: #94a3b8; margin-top: 0.4rem;">
-                    {'🟢 Well below peak' if pct_of_peak < 80 else '🟡 Approaching peak demand' if pct_of_peak < 95 else '🔴 At or above peak — grid under stress'}
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            peak_bar_html = (
+                '<div class="metric-card" style="text-align:left;">'
+                '<div style="font-size:1rem;font-weight:700;margin-bottom:0.6rem;">📈 Current Load vs Today\'s Forecasted Peak</div>'
+                '<div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:0.3rem;">'
+                f'<span>0 MW</span><span>{peak:,.0f} MW (Peak)</span></div>'
+                '<div style="background:#334155;border-radius:8px;height:32px;overflow:hidden;">'
+                f'<div style="width:{load_bar_pct:.1f}%;height:100%;background:{load_bar_color};border-radius:8px;'
+                'display:flex;align-items:center;justify-content:center;'
+                f'font-weight:700;font-size:0.85rem;color:white;min-width:100px;">'
+                f'{current_load:,.0f} MW ({pct_of_peak:.0f}%)</div></div>'
+                f'<div style="font-size:0.8rem;color:#94a3b8;margin-top:0.4rem;">{peak_status}</div>'
+                '</div>'
+            )
+            st.markdown(peak_bar_html, unsafe_allow_html=True)
 
             st.markdown("")
 
@@ -263,38 +246,30 @@ def render():
             ]
             rows_html = ""
             for label, value in rows:
-                rows_html += f"""
-                <div style="display: flex; justify-content: space-between; padding: 0.45rem 0;
-                            border-bottom: 1px solid #334155;">
-                    <span>{label}</span>
-                    <span style="font-weight: 700;">{value}</span>
-                </div>
-                """
-            st.markdown(f"""
-            <div class="metric-card" style="text-align: left;">
-                <div style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem;">
-                    Grid Capacity Breakdown (ISO-NE 7-Day Forecast)
-                </div>
-                {rows_html}
-            </div>
-            """, unsafe_allow_html=True)
+                rows_html += (
+                    '<div style="display:flex;justify-content:space-between;padding:0.45rem 0;'
+                    'border-bottom:1px solid #334155;">'
+                    f'<span>{label}</span><span style="font-weight:700;">{value}</span></div>'
+                )
+            cap_table_html = (
+                '<div class="metric-card" style="text-align:left;">'
+                '<div style="font-size:0.9rem;font-weight:700;margin-bottom:0.5rem;">Grid Capacity Breakdown (ISO-NE 7-Day Forecast)</div>'
+                f'{rows_html}</div>'
+            )
+            st.markdown(cap_table_html, unsafe_allow_html=True)
 
         with cap_right:
             # Import highlight card
-            st.markdown(f"""
-            <div class="metric-card" style="text-align: center;">
-                <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">
-                    Power Imports
-                </div>
-                <div style="font-size: 2.5rem; font-weight: 800; color: #3b82f6; line-height: 1.1; margin: 0.3rem 0;">
-                    {imports:,.0f}
-                </div>
-                <div style="font-size: 0.85rem; color: #94a3b8;">MW from Québec & New York</div>
-                <div style="font-size: 0.75rem; color: #64748b; margin-top: 0.4rem;">
-                    {(imports / gen_plus_imports * 100):.1f}% of total capacity
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
+            import_pct = (imports / gen_plus_imports * 100) if gen_plus_imports > 0 else 0
+            import_html = (
+                '<div class="metric-card" style="text-align:center;">'
+                '<div style="font-size:0.8rem;color:#94a3b8;text-transform:uppercase;letter-spacing:0.05em;">Power Imports</div>'
+                f'<div style="font-size:2.5rem;font-weight:800;color:#3b82f6;line-height:1.1;margin:0.3rem 0;">{imports:,.0f}</div>'
+                '<div style="font-size:0.85rem;color:#94a3b8;">MW from Québec &amp; New York</div>'
+                f'<div style="font-size:0.75rem;color:#64748b;margin-top:0.4rem;">{import_pct:.1f}% of total capacity</div>'
+                '</div>'
+            )
+            st.markdown(import_html, unsafe_allow_html=True)
 
             st.markdown("")
 
@@ -314,43 +289,43 @@ def render():
             if alerts:
                 alert_html = ""
                 for text, color in alerts:
-                    alert_html += f'<div style="padding: 0.3rem 0; color: {color}; font-weight: 600;">{text}</div>'
-                st.markdown(f"""
-                <div class="metric-card" style="text-align: left;">
-                    <div style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.3rem;">🚨 ISO-NE Alerts</div>
-                    {alert_html}
-                </div>
-                """, unsafe_allow_html=True)
+                    alert_html += f'<div style="padding:0.3rem 0;color:{color};font-weight:600;">{text}</div>'
+                alerts_card = (
+                    '<div class="metric-card" style="text-align:left;">'
+                    '<div style="font-size:0.9rem;font-weight:700;margin-bottom:0.3rem;">🚨 ISO-NE Alerts</div>'
+                    f'{alert_html}</div>'
+                )
+                st.markdown(alerts_card, unsafe_allow_html=True)
             else:
-                st.markdown("""
-                <div class="metric-card" style="text-align: center;">
-                    <div style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.3rem;">🚨 ISO-NE Alerts</div>
-                    <div style="color: #22c55e; font-weight: 600;">🟢 No alerts active</div>
-                </div>
-                """, unsafe_allow_html=True)
+                st.markdown(
+                    '<div class="metric-card" style="text-align:center;">'
+                    '<div style="font-size:0.9rem;font-weight:700;margin-bottom:0.3rem;">🚨 ISO-NE Alerts</div>'
+                    '<div style="color:#22c55e;font-weight:600;">🟢 No alerts active</div>'
+                    '</div>',
+                    unsafe_allow_html=True,
+                )
 
             st.markdown("")
 
             # Weather
             weather = today.get("weather", {})
             if weather:
-                weather_html = ""
+                weather_rows = ""
                 for city, w in weather.items():
                     high = w.get("high_f", "?")
                     dew = w.get("dew_f", "?")
-                    weather_html += f"""
-                    <div style="display: flex; justify-content: space-between; padding: 0.3rem 0;
-                                border-bottom: 1px solid #334155;">
-                        <span>🌡️ {city}</span>
-                        <span style="font-weight: 600;">{high}°F (dew: {dew}°F)</span>
-                    </div>
-                    """
-                st.markdown(f"""
-                <div class="metric-card" style="text-align: left;">
-                    <div style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.3rem;">Weather (Drives Demand)</div>
-                    {weather_html}
-                </div>
-                """, unsafe_allow_html=True)
+                    weather_rows += (
+                        '<div style="display:flex;justify-content:space-between;padding:0.3rem 0;'
+                        'border-bottom:1px solid #334155;">'
+                        f'<span>🌡️ {city}</span>'
+                        f'<span style="font-weight:600;">{high}°F (dew: {dew}°F)</span></div>'
+                    )
+                weather_html = (
+                    '<div class="metric-card" style="text-align:left;">'
+                    '<div style="font-size:0.9rem;font-weight:700;margin-bottom:0.3rem;">Weather (Drives Demand)</div>'
+                    f'{weather_rows}</div>'
+                )
+                st.markdown(weather_html, unsafe_allow_html=True)
 
         # Week-ahead mini table
         week = gf.get("week", [])
