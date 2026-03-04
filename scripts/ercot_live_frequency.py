@@ -3,6 +3,7 @@ import json
 import os
 from datetime import datetime, timezone
 from html.parser import HTMLParser
+from typing import Optional, Tuple
 
 import httpx
 
@@ -30,7 +31,7 @@ class _TableTextParser(HTMLParser):
                 self.cells.append(text)
 
 
-def _extract_frequency(payload: dict) -> tuple[float | None, dict | None]:
+def _extract_frequency(payload: dict) -> Tuple[Optional[float], Optional[dict]]:
     if not isinstance(payload, dict):
         return None, None
 
@@ -56,7 +57,7 @@ def _extract_frequency(payload: dict) -> tuple[float | None, dict | None]:
     return None, None
 
 
-def _extract_frequency_from_html(html: str) -> tuple[float | None, str | None]:
+def _extract_frequency_from_html(html: str) -> Tuple[Optional[float], Optional[str]]:
     parser = _TableTextParser()
     parser.feed(html)
     cells = parser.cells
