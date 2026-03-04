@@ -67,6 +67,15 @@ async def ercot_load_forecast():
         raise HTTPException(status_code=502, detail=str(exc))
 
 
+@app.get("/ercot/frequency", tags=["ERCOT"])
+async def ercot_frequency():
+    """ERCOT system frequency (API if available, HTML fallback)."""
+    try:
+        return await ercot.get_system_frequency_value()
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+
+
 # ─── ISO-NE ──────────────────────────────────────────────────────────────────
 
 @app.get("/isone/lmp/realtime", tags=["ISO-NE"])
@@ -117,4 +126,3 @@ async def grid_status(
         "texas": texas_eval,
         "maine": maine_eval
     }
-

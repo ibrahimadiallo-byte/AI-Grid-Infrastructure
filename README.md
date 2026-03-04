@@ -32,6 +32,12 @@ cp .env.example .env
 # Open .env and fill in your ERCOT and ISO-NE credentials
 ```
 
+#### Python 3.9 note
+If you're on Python 3.9, run scripts with:
+```bash
+PYTHONPATH=. python3 scripts/ercot_live_frequency.py
+```
+
 #### Getting API Keys
 
 | Grid | Register at | Auth type |
@@ -86,6 +92,7 @@ energy-grid-dashboard/
 | GET | `/health` | Health check |
 | GET | `/ercot/prices` | ERCOT real-time settlement-point prices |
 | GET | `/ercot/load-forecast` | ERCOT system load forecast |
+| GET | `/ercot/frequency` | ERCOT system frequency (API if configured, HTML fallback) |
 | GET | `/isone/lmp/realtime` | ISO-NE real-time LMPs |
 | GET | `/isone/lmp/dayahead` | ISO-NE day-ahead LMPs |
 | GET | `/isone/demand` | ISO-NE current hourly demand |
