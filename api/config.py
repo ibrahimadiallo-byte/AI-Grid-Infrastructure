@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     ercot_base_url: str = "https://api.ercot.com/api/public-reports"
 
     # ISO-NE
-    isone_username: str = ""
-    isone_password: str = ""
+    isone_username: str = "michael.chabler@pursuit.org"
+    isone_password: str = "gr5m3F2krDd!6pS"
     isone_base_url: str = "https://webservices.iso-ne.com/api/v1.1"
 
     # App

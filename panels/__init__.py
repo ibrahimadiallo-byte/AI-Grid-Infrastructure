@@ -9,6 +9,6 @@ and register it in STATE_PANELS below.
 # Registry: maps sidebar label → (module, render_function_name)
 # Ibrahima: add your entry here when Texas is ready ↓
 STATE_PANELS = {
-    "🏔️ Maine (ISO-NE)": "panels.maine",
-    "🤠 Texas (ERCOT)": "panels.texas",
+    "Maine (ISO-NE)": "panels.maine",
+    "Texas (ERCOT)": "panels.texas",
 }

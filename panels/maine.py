@@ -6,6 +6,7 @@ Ibrahima: you don't need to touch this file.
 """
 
 import streamlit as st
+import textwrap
 from datetime import datetime
 
 from maine_ingestion import (
@@ -76,8 +77,11 @@ def render():
             unsafe_allow_html=True,
         )
 
-    # ── Header ──
-    st.markdown("## 🏔️ Maine Grid — ISO New England")
+    col_title, col_img = st.columns([8, 1])
+    with col_title:
+        st.markdown("## Maine Grid — ISO New England")
+    with col_img:
+        st.image("assets/maine_flag.png", width=60)
     ts = snap.get("fetched_at", "")
     if ts:
         try:
@@ -161,7 +165,7 @@ def render():
         congestion = lmp.get("congestion_component", 0)
         loss = lmp.get("loss_component", 0)
 
-        st.markdown(f"""
+        st.markdown(textwrap.dedent(f"""
         <div class="metric-card" style="text-align: left;">
             <div style="font-size: 0.9rem; margin-bottom: 0.8rem;">
                 <strong>LMP Breakdown for Maine (.Z.MAINE)</strong>
@@ -185,11 +189,11 @@ def render():
                 </span>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """), unsafe_allow_html=True)
 
         st.markdown("")
         st.markdown("### 🎯 Green Mode Rules")
-        st.markdown(f"""
+        st.markdown(textwrap.dedent(f"""
         <div class="metric-card" style="text-align: left; font-size: 0.9rem;">
             <div style="padding: 0.3rem 0;">
                 {"🔴" if fm.get("gas_above_threshold") else "⚪"} Gas > {GAS_THRESHOLD_PCT}% →
@@ -203,7 +207,7 @@ def render():
                 Either trigger = <strong>Reduce data center load 25%</strong>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """), unsafe_allow_html=True)
 
     # ── Data Center Response ──
     st.markdown("---")
@@ -227,7 +231,7 @@ def render():
             load_bar_pct = min(100, pct_of_peak) if peak > 0 else 0
             load_bar_color = "#22c55e" if load_bar_pct < 80 else "#f59e0b" if load_bar_pct < 95 else "#ef4444"
 
-            st.markdown(f"""
+            st.markdown(textwrap.dedent(f"""
             <div class="metric-card" style="text-align: left;">
                 <div style="font-size: 1rem; font-weight: 700; margin-bottom: 0.6rem;">
                     📈 Current Load vs Today's Forecasted Peak
@@ -247,7 +251,7 @@ def render():
                     {'🟢 Well below peak' if pct_of_peak < 80 else '🟡 Approaching peak demand' if pct_of_peak < 95 else '🔴 At or above peak — grid under stress'}
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """), unsafe_allow_html=True)
 
             st.markdown("")
 
@@ -263,25 +267,25 @@ def render():
             ]
             rows_html = ""
             for label, value in rows:
-                rows_html += f"""
+                rows_html += textwrap.dedent(f"""
                 <div style="display: flex; justify-content: space-between; padding: 0.45rem 0;
                             border-bottom: 1px solid #334155;">
                     <span>{label}</span>
                     <span style="font-weight: 700;">{value}</span>
                 </div>
-                """
-            st.markdown(f"""
+                """)
+            st.markdown(textwrap.dedent(f"""
             <div class="metric-card" style="text-align: left;">
                 <div style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem;">
                     Grid Capacity Breakdown (ISO-NE 7-Day Forecast)
                 </div>
                 {rows_html}
             </div>
-            """, unsafe_allow_html=True)
+            """), unsafe_allow_html=True)
 
         with cap_right:
             # Import highlight card
-            st.markdown(f"""
+            st.markdown(textwrap.dedent(f"""
             <div class="metric-card" style="text-align: center;">
                 <div style="font-size: 0.8rem; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em;">
                     Power Imports
@@ -294,7 +298,7 @@ def render():
                     {(imports / gen_plus_imports * 100):.1f}% of total capacity
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """), unsafe_allow_html=True)
 
             st.markdown("")
 
@@ -315,19 +319,19 @@ def render():
                 alert_html = ""
                 for text, color in alerts:
                     alert_html += f'<div style="padding: 0.3rem 0; color: {color}; font-weight: 600;">{text}</div>'
-                st.markdown(f"""
+                st.markdown(textwrap.dedent(f"""
                 <div class="metric-card" style="text-align: left;">
                     <div style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.3rem;">🚨 ISO-NE Alerts</div>
                     {alert_html}
                 </div>
-                """, unsafe_allow_html=True)
+                """), unsafe_allow_html=True)
             else:
-                st.markdown("""
+                st.markdown(textwrap.dedent("""
                 <div class="metric-card" style="text-align: center;">
                     <div style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.3rem;">🚨 ISO-NE Alerts</div>
                     <div style="color: #22c55e; font-weight: 600;">🟢 No alerts active</div>
                 </div>
-                """, unsafe_allow_html=True)
+                """), unsafe_allow_html=True)
 
             st.markdown("")
 
@@ -338,19 +342,19 @@ def render():
                 for city, w in weather.items():
                     high = w.get("high_f", "?")
                     dew = w.get("dew_f", "?")
-                    weather_html += f"""
+                    weather_html += textwrap.dedent(f"""
                     <div style="display: flex; justify-content: space-between; padding: 0.3rem 0;
                                 border-bottom: 1px solid #334155;">
                         <span>🌡️ {city}</span>
                         <span style="font-weight: 600;">{high}°F (dew: {dew}°F)</span>
                     </div>
-                    """
-                st.markdown(f"""
+                    """)
+                st.markdown(textwrap.dedent(f"""
                 <div class="metric-card" style="text-align: left;">
                     <div style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.3rem;">Weather (Drives Demand)</div>
                     {weather_html}
                 </div>
-                """, unsafe_allow_html=True)
+                """), unsafe_allow_html=True)
 
         # Week-ahead mini table
         week = gf.get("week", [])

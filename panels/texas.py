@@ -10,6 +10,7 @@ This is the Texas equivalent of panels/maine.py.
 """
 
 import streamlit as st
+import textwrap
 from datetime import datetime
 
 from texas_ingestion import (
@@ -71,8 +72,11 @@ def render():
             unsafe_allow_html=True,
         )
 
-    # ── Header ──
-    st.markdown("## 🤠 Texas Grid — ERCOT")
+    col_title, col_img = st.columns([8, 1])
+    with col_title:
+        st.markdown("## Texas Grid — ERCOT")
+    with col_img:
+        st.image("assets/texas_flag.png", width=60)
     ts = snap.get("fetched_at", "")
     if ts:
         try:
@@ -167,7 +171,7 @@ def render():
                 status_emoji = "🟢"
                 status_text = "HEALTHY — Grid frequency within normal range"
 
-            st.markdown(f"""
+            st.markdown(textwrap.dedent(f"""
             <div class="metric-card" style="text-align: left;">
                 <div style="font-size: 1rem; font-weight: 700; margin-bottom: 0.6rem;">
                     {status_emoji} {status_text}
@@ -188,7 +192,7 @@ def render():
                     <span>Delta: {delta:+.4f} Hz</span>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """), unsafe_allow_html=True)
 
         st.markdown("")
 
@@ -208,18 +212,18 @@ def render():
             st.markdown("### 📋 System Conditions")
             rows_html = ""
             for label, value in conditions_data:
-                rows_html += f"""
+                rows_html += textwrap.dedent(f"""
                 <div style="display: flex; justify-content: space-between; padding: 0.5rem 0;
                             border-bottom: 1px solid #334155;">
                     <span>{label}</span>
                     <span style="font-weight: 700;">{value}</span>
                 </div>
-                """
-            st.markdown(f"""
+                """)
+            st.markdown(textwrap.dedent(f"""
             <div class="metric-card" style="text-align: left;">
                 {rows_html}
             </div>
-            """, unsafe_allow_html=True)
+            """), unsafe_allow_html=True)
 
     with right_col:
         st.markdown("### 💰 Settlement Point Prices")
@@ -227,7 +231,7 @@ def render():
         top_prices = prices.get("prices", [])
 
         # Price summary card
-        st.markdown(f"""
+        st.markdown(textwrap.dedent(f"""
         <div class="metric-card" style="text-align: left;">
             <div style="font-size: 0.9rem; margin-bottom: 0.8rem;">
                 <strong>ERCOT Real-Time SPP</strong>
@@ -241,7 +245,7 @@ def render():
                 <span style="font-weight: 700;">{prices.get('num_nodes', 0)}</span>
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """), unsafe_allow_html=True)
 
         # Top settlement points
         if top_prices:
@@ -254,7 +258,7 @@ def render():
 
         st.markdown("")
         st.markdown("### 🎯 Reliability Mode Rules")
-        st.markdown(f"""
+        st.markdown(textwrap.dedent(f"""
         <div class="metric-card" style="text-align: left; font-size: 0.9rem;">
             <div style="padding: 0.3rem 0;">
                 {"🔴" if freq.get("below_threshold") else "⚪"} Frequency < {FREQUENCY_THRESHOLD_HZ} Hz →
@@ -268,7 +272,7 @@ def render():
                 Without intervention → rolling blackouts.
             </div>
         </div>
-        """, unsafe_allow_html=True)
+        """), unsafe_allow_html=True)
 
     # ── Data Center Response ──
     st.markdown("---")
