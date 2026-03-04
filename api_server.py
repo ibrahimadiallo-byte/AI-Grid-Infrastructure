@@ -16,6 +16,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 import ingestion_worker
 from maine_ingestion import fetch_maine_snapshot
+from texas_ingestion import fetch_texas_snapshot
 from snapshot_store import get_latest, get_history, get_all_latest
 
 logging.basicConfig(
@@ -67,6 +68,9 @@ def root():
             "/snapshot/maine",
             "/snapshot/maine/live",
             "/snapshot/maine/history",
+            "/snapshot/texas",
+            "/snapshot/texas/live",
+            "/snapshot/texas/history",
             "/snapshot/all",
             "/health",
         ],
@@ -110,14 +114,40 @@ def snapshot_maine_history(limit: int = 60):
 def snapshot_all():
     """
     Get the latest snapshot for every state we're tracking.
-    Returns { "maine": {...}, "texas": {...} } once Texas is merged in.
+    Returns { "maine": {...}, "texas": {...} }.
     """
     return get_all_latest()
 
 
 # ---------------------------------------------------------------------------
-# Future: Texas endpoints will go here after Ibrahima's merge
+# Texas endpoints
 # ---------------------------------------------------------------------------
+
+@app.get("/snapshot/texas")
+def snapshot_texas():
+    """
+    Get the latest cached Texas snapshot from the background worker.
+    Updates every 60 seconds.
+    """
+    return get_latest("texas")
+
+
+@app.get("/snapshot/texas/live")
+def snapshot_texas_live():
+    """
+    Fetch a FRESH Texas snapshot right now (bypasses cache).
+    Useful for one-off checks, but slower.
+    """
+    return fetch_texas_snapshot()
+
+
+@app.get("/snapshot/texas/history")
+def snapshot_texas_history(limit: int = 60):
+    """
+    Get the last N Texas snapshots (default: 60 ≈ 1 hour).
+    Used by the dashboard for trend charts.
+    """
+    return get_history("texas", limit)
 # @app.get("/snapshot/texas")
 # def snapshot_texas():
 #     return get_latest("texas")

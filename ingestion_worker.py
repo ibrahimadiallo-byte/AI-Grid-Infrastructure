@@ -10,6 +10,7 @@ import threading
 import logging
 
 from maine_ingestion import fetch_maine_snapshot
+from texas_ingestion import fetch_texas_snapshot
 from snapshot_store import save_snapshot
 
 log = logging.getLogger("ingestion_worker")
@@ -35,10 +36,19 @@ def _poll_loop(interval: int = 60):
                 f"GreenMode={'ON' if snap['green_mode_triggered'] else 'OFF'}"
             )
 
-            # ── Texas ── (placeholder for Ibrahima's module)
-            # from texas_ingestion import fetch_texas_snapshot
-            # tx_snap = fetch_texas_snapshot()
-            # save_snapshot(tx_snap)
+            # ── Texas ──
+            try:
+                tx_snap = fetch_texas_snapshot()
+                save_snapshot(tx_snap)
+                freq_hz = tx_snap["frequency"].get("frequency_hz", "?")
+                log.info(
+                    f"[Texas] Cycle {cycle} | "
+                    f"Freq={freq_hz}Hz | "
+                    f"AvgPrice=${tx_snap['prices'].get('hub_avg_price', '?')}/MWh | "
+                    f"ReliabilityMode={'ON' if tx_snap['reliability_mode_triggered'] else 'OFF'}"
+                )
+            except Exception as e:
+                log.error(f"[Texas] Cycle {cycle} failed: {e}")
 
         except Exception as e:
             log.error(f"Ingestion cycle {cycle} failed: {e}")

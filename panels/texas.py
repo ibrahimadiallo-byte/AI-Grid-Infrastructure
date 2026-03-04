@@ -1,32 +1,23 @@
 """
 panels/texas.py — Texas (ERCOT) Dashboard Panel
-==================================================
-🚧 PLACEHOLDER — Ibrahima, this is YOUR file to build out.
+===================================================
+Live ERCOT grid monitoring with Reliability Mode detection.
 
-Instructions:
-  1. Create a texas_ingestion.py (same pattern as maine_ingestion.py)
-     with a fetch_texas_snapshot() function that returns:
-     {
-         "state": "texas",
-         "fetched_at": "...",
-         "frequency": { "hz": 59.98, "below_threshold": False },
-         "fuel_mix": { ... },
-         "system_load": { ... },
-         "reliability_mode_triggered": True/False,
-         "trigger_reasons": [...]
-     }
+When grid frequency drops below 59.97 Hz (demand overwhelming supply),
+Reliability Mode activates and the data center reduces load by 40%.
 
-  2. Fill in the render() function below using shared components
-     from panels.shared (render_metric_card, render_fuel_bar, etc.)
-
-  3. Optionally add get_sidebar_info() to show Texas-specific
-     thresholds in the sidebar.
-
-You do NOT need to touch dashboard.py or panels/maine.py.
+This is the Texas equivalent of panels/maine.py.
 """
 
 import streamlit as st
-from panels.shared import render_metric_card, render_data_center_mock
+from datetime import datetime
+
+from texas_ingestion import (
+    fetch_texas_snapshot,
+    FREQUENCY_THRESHOLD_HZ,
+    RELIABILITY_REDUCTION_PCT,
+)
+from panels.shared import render_metric_card, render_fuel_bar, render_data_center_mock
 
 
 def get_sidebar_info() -> dict:
@@ -34,50 +25,257 @@ def get_sidebar_info() -> dict:
     return {
         "thresholds_title": "Reliability Mode Thresholds",
         "rules": [
-            "Frequency < **59.97 Hz**",
-            "Action: **Reduce load 40%**",
+            f"Frequency < **{FREQUENCY_THRESHOLD_HZ} Hz**",
+            f"Action: **Reduce load {RELIABILITY_REDUCTION_PCT}%**",
+            "Protects grid from blackout conditions",
         ],
     }
 
 
 def render():
-    """
-    Main render function — called by dashboard.py when Texas is selected.
-    Replace this placeholder with real ERCOT data once texas_ingestion.py is ready.
-    """
-    st.markdown("## 🤠 Texas Grid (ERCOT)")
+    """Main render function — called by dashboard.py when Texas is selected."""
 
-    st.info(
-        "🔧 **Texas data ingestion is being built by Ibrahima.**\n\n"
-        "Once `texas_ingestion.py` is created with a `fetch_texas_snapshot()` function, "
-        "this panel will show live ERCOT frequency, reserves, fuel mix, "
-        "and Reliability Mode status.\n\n"
-        "**To get started:**\n"
-        "1. Create `texas_ingestion.py` (follow `maine_ingestion.py` as a template)\n"
-        "2. Edit this file (`panels/texas.py`) to call your ingestion and render the data\n"
-        "3. Use shared components from `panels/shared.py` for consistent styling",
-        icon="🚧",
-    )
+    # Fetch live data
+    with st.spinner("Fetching live ERCOT data..."):
+        snap = fetch_texas_snapshot()
 
-    # ── Preview of what it will look like ──
-    st.markdown("### 📐 Preview (Mock Data)")
-    st.caption("This is a preview using fake values so you can see the layout.")
+    if not snap or not snap.get("frequency"):
+        st.error("❌ Could not fetch data from ERCOT. Check your .env credentials or network.")
+        st.stop()
 
-    st.markdown(
-        '<div class="reliability-mode-off">'
-        '🟢 GRID NORMAL — No throttling needed'
-        '</div>',
-        unsafe_allow_html=True,
-    )
+    freq = snap["frequency"]
+    prices = snap["prices"]
+    load_forecast = snap["load_forecast"]
+    reliability_mode = snap["reliability_mode_triggered"]
+    reasons = snap["trigger_reasons"]
 
-    col1, col2, col3 = st.columns(3)
+    freq_hz = freq.get("frequency_hz")
+    current_load = freq.get("current_load_mw")
+    total_gen = freq.get("total_gen_mw")
+    wind_mw = freq.get("wind_output_mw")
+
+    # ── Reliability Mode Banner ──
+    if reliability_mode:
+        reason_text = " | ".join(reasons)
+        st.markdown(
+            f'<div class="reliability-mode-on">'
+            f'🔴 RELIABILITY MODE ACTIVE — Grid stressed! Load reduced {RELIABILITY_REDUCTION_PCT}% — {reason_text}'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown(
+            '<div class="reliability-mode-off">'
+            '🟢 GRID NORMAL — Frequency stable, no throttling needed'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+
+    # ── Header ──
+    st.markdown("## 🤠 Texas Grid — ERCOT")
+    ts = snap.get("fetched_at", "")
+    if ts:
+        try:
+            dt = datetime.fromisoformat(ts)
+            st.caption(f"Last updated: {dt.strftime('%B %d, %Y at %I:%M:%S %p UTC')}")
+        except Exception:
+            st.caption(f"Last updated: {ts}")
+
+    # ── Key Metrics (top row) ──
+    col1, col2, col3, col4 = st.columns(4)
+
     with col1:
-        render_metric_card("60.00 Hz", "Grid Frequency", "🟢 Normal range")
-    with col2:
-        render_metric_card("$42.50", "ERCOT LMP ($/MWh)", "Real-time price")
-    with col3:
-        render_metric_card("45,200", "System Load (MW)", "ERCOT total demand")
+        if freq_hz is not None:
+            delta = freq_hz - FREQUENCY_THRESHOLD_HZ
+            if freq.get("below_threshold"):
+                freq_status = "🔴 BELOW THRESHOLD"
+            elif delta < 0.05:
+                freq_status = "🟡 Close to threshold"
+            else:
+                freq_status = "🟢 Normal range"
+            render_metric_card(
+                f"{freq_hz:.4f} Hz",
+                "Grid Frequency",
+                f"{freq_status} ({FREQUENCY_THRESHOLD_HZ} Hz limit)",
+            )
+        else:
+            render_metric_card("N/A", "Grid Frequency", "⚠️ Data unavailable")
 
+    with col2:
+        avg_price = prices.get("hub_avg_price", 0)
+        render_metric_card(
+            f"${avg_price:.2f}",
+            "Avg Settlement Price",
+            f"Across {prices.get('num_nodes', 0)} nodes",
+        )
+
+    with col3:
+        if current_load is not None:
+            render_metric_card(
+                f"{current_load:,.0f}",
+                "Current Load (MW)",
+                "ERCOT system demand",
+            )
+        else:
+            forecast_mw = load_forecast.get("forecast_mw", 0)
+            render_metric_card(
+                f"{forecast_mw:,.0f}",
+                "Load Forecast (MW)",
+                "ERCOT projected demand",
+            )
+
+    with col4:
+        if total_gen is not None:
+            render_metric_card(
+                f"{total_gen:,.0f}",
+                "Total Generation (MW)",
+                "All sources combined",
+            )
+        elif wind_mw is not None:
+            render_metric_card(
+                f"{wind_mw:,.0f}",
+                "Wind Output (MW)",
+                "Current wind generation",
+            )
+        else:
+            render_metric_card("—", "Generation Data", "⚠️ Unavailable")
+
+    st.markdown("")
+
+    # ── Two-column layout: Frequency Detail + Prices ──
+    left_col, right_col = st.columns([3, 2])
+
+    with left_col:
+        st.markdown("### ⚡ Frequency & Grid Health")
+
+        # Frequency gauge visualization
+        if freq_hz is not None:
+            delta = freq_hz - FREQUENCY_THRESHOLD_HZ
+            # Map frequency to a 0-100 bar (59.90 = danger, 60.05 = great)
+            bar_pct = max(0, min(100, (freq_hz - 59.90) / (60.05 - 59.90) * 100))
+
+            if freq.get("below_threshold"):
+                bar_color = "#ef4444"  # red
+                status_emoji = "🔴"
+                status_text = "DANGER — Grid frequency below safe threshold"
+            elif delta < 0.03:
+                bar_color = "#f59e0b"  # amber
+                status_emoji = "🟡"
+                status_text = "WARNING — Frequency approaching threshold"
+            else:
+                bar_color = "#22c55e"  # green
+                status_emoji = "🟢"
+                status_text = "HEALTHY — Grid frequency within normal range"
+
+            st.markdown(f"""
+            <div class="metric-card" style="text-align: left;">
+                <div style="font-size: 1rem; font-weight: 700; margin-bottom: 0.6rem;">
+                    {status_emoji} {status_text}
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.85rem; margin-bottom: 0.3rem;">
+                    <span>59.90 Hz (Blackout Risk)</span>
+                    <span>60.05 Hz (Ideal)</span>
+                </div>
+                <div style="background: #334155; border-radius: 8px; height: 32px; overflow: hidden; position: relative;">
+                    <div style="width: {bar_pct:.1f}%; height: 100%; background: {bar_color}; border-radius: 8px;
+                                display: flex; align-items: center; justify-content: center;
+                                font-weight: 700; font-size: 0.85rem; color: white; min-width: 80px;">
+                        {freq_hz:.4f} Hz
+                    </div>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-top: 0.5rem; font-size: 0.8rem; color: #94a3b8;">
+                    <span>Threshold: {FREQUENCY_THRESHOLD_HZ} Hz</span>
+                    <span>Delta: {delta:+.4f} Hz</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+        st.markdown("")
+
+        # System conditions from HTML
+        conditions_data = []
+        if current_load is not None:
+            conditions_data.append(("⚡ Current System Load", f"{current_load:,.0f} MW"))
+        if total_gen is not None:
+            conditions_data.append(("🏭 Total Generation Capacity", f"{total_gen:,.0f} MW"))
+        if wind_mw is not None:
+            conditions_data.append(("💨 Wind Output", f"{wind_mw:,.0f} MW"))
+        forecast_mw = load_forecast.get("forecast_mw", 0)
+        if forecast_mw > 0:
+            conditions_data.append(("📊 Load Forecast (Peak)", f"{forecast_mw:,.0f} MW"))
+
+        if conditions_data:
+            st.markdown("### 📋 System Conditions")
+            rows_html = ""
+            for label, value in conditions_data:
+                rows_html += f"""
+                <div style="display: flex; justify-content: space-between; padding: 0.5rem 0;
+                            border-bottom: 1px solid #334155;">
+                    <span>{label}</span>
+                    <span style="font-weight: 700;">{value}</span>
+                </div>
+                """
+            st.markdown(f"""
+            <div class="metric-card" style="text-align: left;">
+                {rows_html}
+            </div>
+            """, unsafe_allow_html=True)
+
+    with right_col:
+        st.markdown("### 💰 Settlement Point Prices")
+        avg_price = prices.get("hub_avg_price", 0)
+        top_prices = prices.get("prices", [])
+
+        # Price summary card
+        st.markdown(f"""
+        <div class="metric-card" style="text-align: left;">
+            <div style="font-size: 0.9rem; margin-bottom: 0.8rem;">
+                <strong>ERCOT Real-Time SPP</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #334155;">
+                <span>📊 Avg Price</span>
+                <span style="font-weight: 700;">${avg_price:.2f}/MWh</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.4rem 0; border-bottom: 1px solid #334155;">
+                <span>📍 Nodes Sampled</span>
+                <span style="font-weight: 700;">{prices.get('num_nodes', 0)}</span>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Top settlement points
+        if top_prices:
+            sorted_prices = sorted(top_prices, key=lambda x: -x.get("price", 0))[:8]
+            with st.expander(f"🔍 Top {min(8, len(sorted_prices))} Settlement Points"):
+                for sp in sorted_prices:
+                    node = sp.get("node", "Unknown")
+                    price_val = sp.get("price", 0)
+                    st.markdown(f"- **{node}**: ${price_val:.2f}/MWh")
+
+        st.markdown("")
+        st.markdown("### 🎯 Reliability Mode Rules")
+        st.markdown(f"""
+        <div class="metric-card" style="text-align: left; font-size: 0.9rem;">
+            <div style="padding: 0.3rem 0;">
+                {"🔴" if freq.get("below_threshold") else "⚪"} Frequency < {FREQUENCY_THRESHOLD_HZ} Hz →
+                currently <strong>{f"{freq_hz:.4f} Hz" if freq_hz is not None else "N/A"}</strong>
+            </div>
+            <div style="padding: 0.5rem 0 0.2rem; border-top: 1px solid #334155; margin-top: 0.3rem;">
+                Trigger = <strong>Reduce data center load {RELIABILITY_REDUCTION_PCT}%</strong>
+            </div>
+            <div style="padding: 0.3rem 0; font-size: 0.8rem; color: #94a3b8;">
+                Why? Low frequency = demand exceeding supply.<br>
+                Without intervention → rolling blackouts.
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # ── Data Center Response ──
     st.markdown("---")
     st.markdown("### 🖥️ Data Center Response")
-    render_data_center_mock("Texas", throttled=False, reduction_pct=40)
+    render_data_center_mock("Texas", reliability_mode, reduction_pct=RELIABILITY_REDUCTION_PCT)
+
+    # ── Raw data ──
+    st.markdown("---")
+    with st.expander("📋 Raw Snapshot Data (for debugging)"):
+        st.json(snap)
