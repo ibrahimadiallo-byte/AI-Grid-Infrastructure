@@ -198,14 +198,44 @@ def render():
             conditions_data.append(("⚡ Current System Load", f"{current_load:,.0f} MW"))
         if total_gen is not None:
             conditions_data.append(("🏭 Total Generation Capacity", f"{total_gen:,.0f} MW"))
+        if current_load is not None and total_gen is not None and total_gen > 0:
+            reserve_mw = total_gen - current_load
+            reserve_pct = (reserve_mw / total_gen * 100)
+            reserve_status = "🟢" if reserve_pct > 20 else "🟡" if reserve_pct > 10 else "🔴"
+            conditions_data.append((f"{reserve_status} Reserve Margin", f"{reserve_mw:,.0f} MW ({reserve_pct:.1f}%)"))
         if wind_mw is not None:
-            conditions_data.append(("💨 Wind Output", f"{wind_mw:,.0f} MW"))
-        forecast_mw = load_forecast.get("forecast_mw", 0)
-        if forecast_mw > 0:
-            conditions_data.append(("📊 Load Forecast (Peak)", f"{forecast_mw:,.0f} MW"))
+            wind_pct = (wind_mw / current_load * 100) if current_load and current_load > 0 else 0
+            conditions_data.append(("💨 Wind Output", f"{wind_mw:,.0f} MW ({wind_pct:.0f}% of load)"))
 
         if conditions_data:
             st.markdown("### 📋 System Conditions")
+
+            # Load vs Capacity visual bar
+            if current_load is not None and total_gen is not None and total_gen > 0:
+                usage_pct = (current_load / total_gen * 100)
+                bar_color = "#22c55e" if usage_pct < 75 else "#f59e0b" if usage_pct < 90 else "#ef4444"
+                st.markdown(f"""
+                <div class="metric-card" style="text-align: left; margin-bottom: 0.8rem;">
+                    <div style="font-size: 0.9rem; font-weight: 700; margin-bottom: 0.5rem;">
+                        Load vs Generation Capacity
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.8rem; margin-bottom: 0.3rem;">
+                        <span>0 MW</span>
+                        <span>{total_gen:,.0f} MW (Max Capacity)</span>
+                    </div>
+                    <div style="background: #334155; border-radius: 8px; height: 28px; overflow: hidden;">
+                        <div style="width: {usage_pct:.1f}%; height: 100%; background: {bar_color}; border-radius: 8px;
+                                    display: flex; align-items: center; justify-content: center;
+                                    font-weight: 700; font-size: 0.8rem; color: white; min-width: 100px;">
+                            {current_load:,.0f} MW ({usage_pct:.0f}%)
+                        </div>
+                    </div>
+                    <div style="font-size: 0.75rem; color: #94a3b8; margin-top: 0.3rem;">
+                        {'🟢 Healthy reserves' if usage_pct < 75 else '🟡 Reserves tightening' if usage_pct < 90 else '🔴 Critical — blackout risk'}
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
             rows_html = ""
             for label, value in conditions_data:
                 rows_html += f"""

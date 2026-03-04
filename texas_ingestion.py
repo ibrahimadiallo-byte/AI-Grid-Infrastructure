@@ -312,17 +312,23 @@ def fetch_load_forecast() -> dict:
     """
     Fetch ERCOT system-wide load forecast.
 
-    ERCOT API returns records as arrays.
+    ERCOT API returns records as arrays for the lf_by_model_study_area endpoint.
     Fields: [postedDatetime, deliveryDate, hourEnding, valley, model, DSTFlag]
+
+    NOTE: The 'valley' field is the minimum load for a SINGLE study area
+    (typically ~1,000-1,500 MW), NOT the system total (~50,000-60,000 MW).
+    We sum across all models for each hour to approximate system forecast,
+    but the HTML scraper's current_load_mw is the authoritative real-time value.
 
     Returns dict like:
     {
         "timestamp": "2026-03-03T18:30:00",
         "forecast_mw": 52000,
-        "num_records": 5
+        "num_records": 20,
+        "source_note": "Sum of study-area valleys (approximate)"
     }
     """
-    data = _ercot_api_get("/np3-566-cd/lf_by_model_study_area?size=20")
+    data = _ercot_api_get("/np3-566-cd/lf_by_model_study_area?size=100")
     if not data:
         return {}
 
@@ -330,35 +336,57 @@ def fetch_load_forecast() -> dict:
     if not isinstance(records, list):
         records = []
 
-    forecast_mw = 0.0
+    # Sum valley values by (date, hour) for model 'E' (primary model)
+    # to approximate system-wide totals
+    by_date_hour = {}
     timestamp = ""
 
     for rec in records:
-        if isinstance(rec, list) and len(rec) >= 4:
-            # Array format: [postedDatetime, deliveryDate, hourEnding, valley, model, dst]
+        if isinstance(rec, list) and len(rec) >= 5:
             ts = str(rec[0])
-            mw_val = rec[3]  # 'valley' field = load value in MW
+            date = str(rec[1])
+            hour = str(rec[2])
+            mw_val = rec[3]
+            model = str(rec[4])
+
+            if ts:
+                timestamp = ts
+
+            # Use model 'E' (primary ensemble) only to avoid double-counting
+            if model != "E":
+                continue
+
+            try:
+                mw_float = float(mw_val)
+            except (TypeError, ValueError):
+                continue
+
+            key = (date, hour)
+            by_date_hour.setdefault(key, 0.0)
+            by_date_hour[key] += mw_float
+
         elif isinstance(rec, dict):
             ts = rec.get("postedDatetime", rec.get("DeliveryDate", ""))
+            if ts:
+                timestamp = str(ts)
             mw_val = rec.get("valley", rec.get("SystemTotal", rec.get("forecast", 0)))
-        else:
-            continue
+            try:
+                mw_float = float(mw_val)
+            except (TypeError, ValueError):
+                continue
 
-        if ts:
-            timestamp = str(ts)
+            key = (str(rec.get("deliveryDate", "")), str(rec.get("hourEnding", "")))
+            by_date_hour.setdefault(key, 0.0)
+            by_date_hour[key] += mw_float
 
-        try:
-            mw_float = float(mw_val)
-        except (TypeError, ValueError):
-            mw_float = 0.0
-
-        if mw_float > forecast_mw:
-            forecast_mw = mw_float
+    # Find the peak hour across all forecast periods
+    forecast_mw = max(by_date_hour.values()) if by_date_hour else 0.0
 
     return {
         "timestamp": timestamp,
         "forecast_mw": round(forecast_mw, 1),
         "num_records": len(records),
+        "source_note": "Sum of study-area valleys (approximate)",
     }
 
 
@@ -468,9 +496,14 @@ def print_snapshot(snap: dict):
     print(f"\n  💰 AVG SETTLEMENT PRICE: ${avg_price}/MWh")
     print(f"     Nodes sampled: {prices.get('num_nodes', 0)}")
 
-    # Load forecast
-    forecast = lf.get("forecast_mw", "N/A")
-    print(f"\n  📊 LOAD FORECAST: {forecast} MW")
+    # Reserve margin (authoritative from HTML scraper)
+    load_mw = conds.get("current_load_mw")
+    gen_mw = conds.get("total_gen_mw")
+    if load_mw and gen_mw and gen_mw > 0:
+        reserve = gen_mw - load_mw
+        reserve_pct = reserve / gen_mw * 100
+        icon = "🟢" if reserve_pct > 20 else "🟡" if reserve_pct > 10 else "🔴"
+        print(f"\n  {icon} RESERVE MARGIN: {reserve:,.0f} MW ({reserve_pct:.1f}%)")
 
     # Reliability Mode Status
     print(f"\n  {'─' * 50}")
