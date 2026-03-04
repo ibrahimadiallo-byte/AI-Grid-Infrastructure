@@ -230,6 +230,117 @@ def fetch_system_load() -> dict:
 # Combined snapshot — this is what the Logic Engine will call
 # ---------------------------------------------------------------------------
 
+def fetch_grid_forecast() -> dict:
+    """
+    Fetch ISO-NE 7-Day Capacity Forecast — includes peak load, imports,
+    available generation, surplus/deficit, and Power Watch/Warn status.
+
+    This tells us:
+      - How much power is being IMPORTED (e.g., from Québec, NY)
+      - Today's projected PEAK demand
+      - How much SURPLUS capacity we have (or if we're in deficit)
+      - Whether ISO-NE has issued any grid alerts
+
+    Returns dict like:
+    {
+        "today": {
+            "date": "2026-03-04",
+            "peak_load_mw": 15600,
+            "peak_import_mw": 4170,
+            "total_available_gen_mw": 26191,
+            "total_gen_plus_imports_mw": 30361,
+            "surplus_mw": 12276,
+            "reserve_required_mw": 2305,
+            "outages_mw": 2652,
+            "power_watch": False,
+            "power_warn": False,
+            "cold_weather_watch": False,
+            "cold_weather_warn": False,
+            "cold_weather_event": False,
+            "weather": { "Boston": {"high_f": 46, "dew_f": 31}, ... }
+        },
+        "week": [ ... ]   # remaining forecast days
+    }
+    """
+    data = _get("/sevendayforecast/current.json")
+    if not data:
+        return {}
+
+    forecasts = data.get("SevenDayForecasts", {}).get("SevenDayForecast", [])
+    if not forecasts:
+        return {}
+
+    days_raw = forecasts[0].get("MarketDay", [])
+    if not days_raw:
+        return {}
+
+    def _parse_day(d: dict) -> dict:
+        """Parse a single forecast day."""
+        # Weather
+        weather = {}
+        weather_data = d.get("Weather", {}).get("CityWeather", [])
+        for cw in weather_data:
+            city = cw.get("CityName", "Unknown")
+            weather[city] = {
+                "high_f": cw.get("HighTempF"),
+                "dew_f": cw.get("DewPointF"),
+            }
+
+        return {
+            "date": d.get("MarketDate", ""),
+            "peak_load_mw": d.get("PeakLoadMw", 0),
+            "peak_import_mw": d.get("PeakImportMw", 0),
+            "total_available_gen_mw": d.get("TotAvailGenMw", 0),
+            "total_gen_plus_imports_mw": d.get("TotAvailGenImportMw", 0),
+            "surplus_mw": d.get("SurplusDeficiencyMw", 0),
+            "reserve_required_mw": d.get("ReqdReserveMw", 0),
+            "outages_mw": d.get("OtherGenOutagesMw", 0),
+            "power_watch": d.get("PowerWatch", "N") == "Y",
+            "power_warn": d.get("PowerWarn", "N") == "Y",
+            "cold_weather_watch": d.get("ColdWeatherWatch", "N") == "Y",
+            "cold_weather_warn": d.get("ColdWeatherWarn", "N") == "Y",
+            "cold_weather_event": d.get("ColdWeatherEvent", "N") == "Y",
+            "weather": weather,
+        }
+
+    parsed_days = [_parse_day(d) for d in days_raw]
+
+    return {
+        "today": parsed_days[0] if parsed_days else {},
+        "week": parsed_days,
+    }
+
+
+def fetch_hourly_load_forecast() -> dict:
+    """
+    Fetch the ISO-NE hourly load forecast for current/next day.
+
+    Returns dict like:
+    {
+        "forecast_mw": 12560,
+        "net_load_mw": 12560,
+        "timestamp": "..."
+    }
+    """
+    data = _get("/hourlyloadforecast/current.json")
+    if not data:
+        return {}
+
+    entry = data.get("HourlyLoadForecast")
+    if isinstance(entry, list) and entry:
+        entry = entry[-1]
+    elif isinstance(entry, dict):
+        pass
+    else:
+        return {}
+
+    return {
+        "forecast_mw": entry.get("LoadMw", 0),
+        "net_load_mw": entry.get("NetLoadMw", 0),
+        "timestamp": entry.get("BeginDate", ""),
+    }
+
+
 def fetch_maine_snapshot() -> dict:
     """
     Pull all Maine / ISO-NE data into one clean snapshot.
@@ -243,6 +354,8 @@ def fetch_maine_snapshot() -> dict:
         "fuel_mix": { ... },
         "lmp": { ... },
         "system_load": { ... },
+        "grid_forecast": { "today": { peak_load_mw, peak_import_mw, surplus_mw, ... }, "week": [...] },
+        "hourly_forecast": { forecast_mw, net_load_mw },
         "green_mode_triggered": True/False,
         "trigger_reasons": ["gas_above_50pct", "price_above_150"]
     }
@@ -250,6 +363,8 @@ def fetch_maine_snapshot() -> dict:
     fuel_mix = fetch_fuel_mix()
     lmp = fetch_maine_lmp()
     system_load = fetch_system_load()
+    grid_forecast = fetch_grid_forecast()
+    hourly_forecast = fetch_hourly_load_forecast()
 
     # Determine if Green Mode should activate
     trigger_reasons = []
@@ -266,6 +381,8 @@ def fetch_maine_snapshot() -> dict:
         "fuel_mix": fuel_mix,
         "lmp": lmp,
         "system_load": system_load,
+        "grid_forecast": grid_forecast,
+        "hourly_forecast": hourly_forecast,
         "green_mode_triggered": green_mode,
         "trigger_reasons": trigger_reasons,
     }
@@ -283,6 +400,8 @@ def print_snapshot(snap: dict):
     fm = snap.get("fuel_mix", {})
     lmp = snap.get("lmp", {})
     load = snap.get("system_load", {})
+    gf = snap.get("grid_forecast", {})
+    hf = snap.get("hourly_forecast", {})
     green = snap.get("green_mode_triggered", False)
     reasons = snap.get("trigger_reasons", [])
 
@@ -320,6 +439,54 @@ def print_snapshot(snap: dict):
 
     # System Load
     print(f"\n  ⚡ SYSTEM LOAD: {load.get('load_mw', 0):,.1f} MW")
+
+    # Grid Forecast — Imports, Peak, Reserves
+    today = gf.get("today", {})
+    if today:
+        print(f"\n  📊 GRID FORECAST (Today)")
+        print(f"  {'─' * 50}")
+        peak = today.get("peak_load_mw", 0)
+        imports = today.get("peak_import_mw", 0)
+        avail_gen = today.get("total_available_gen_mw", 0)
+        surplus = today.get("surplus_mw", 0)
+        outages = today.get("outages_mw", 0)
+
+        current_mw = load.get("load_mw", 0)
+        pct_of_peak = (current_mw / peak * 100) if peak > 0 else 0
+
+        print(f"    📈 Peak Demand Forecast: {peak:,.0f} MW")
+        print(f"    📍 Current vs Peak: {current_mw:,.0f} / {peak:,.0f} MW ({pct_of_peak:.0f}%)")
+        print(f"    🔌 Peak Imports (Québec/NY): {imports:,.0f} MW")
+        print(f"    🏭 Available Generation: {avail_gen:,.0f} MW")
+        print(f"    ⚠️  Gen Outages: {outages:,.0f} MW offline")
+        print(f"    {'🟢' if surplus > 0 else '🔴'} Surplus Capacity: {surplus:+,.0f} MW")
+
+        # ISO-NE alerts
+        alerts = []
+        if today.get("power_watch"):
+            alerts.append("⚠️  POWER WATCH")
+        if today.get("power_warn"):
+            alerts.append("🔴 POWER WARNING")
+        if today.get("cold_weather_event"):
+            alerts.append("❄️  COLD WEATHER EVENT")
+        elif today.get("cold_weather_warn"):
+            alerts.append("❄️  Cold Weather Warning")
+        elif today.get("cold_weather_watch"):
+            alerts.append("❄️  Cold Weather Watch")
+        if alerts:
+            print(f"    🚨 ALERTS: {' | '.join(alerts)}")
+        else:
+            print(f"    🟢 No grid alerts active")
+
+        # Weather
+        weather = today.get("weather", {})
+        if weather:
+            temps = ", ".join(f"{c}: {w.get('high_f', '?')}°F" for c, w in weather.items())
+            print(f"    🌡️  Weather: {temps}")
+
+    # Hourly forecast
+    if hf.get("forecast_mw"):
+        print(f"\n  📅 Hourly Load Forecast: {hf['forecast_mw']:,.0f} MW")
 
     # Green Mode Status
     print(f"\n  {'─' * 50}")
