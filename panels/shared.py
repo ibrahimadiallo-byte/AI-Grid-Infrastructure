@@ -57,6 +57,7 @@ SHARED_CSS = """
 
     .metric-card {
         background: #1e293b;
+        color: #f1f5f9;
         border-radius: 12px;
         padding: 1.2rem 1.5rem;
         text-align: center;
@@ -83,6 +84,7 @@ SHARED_CSS = """
 
     .fuel-bar-container {
         background: #1e293b;
+        color: #f1f5f9;
         border-radius: 8px;
         padding: 0.8rem 1rem;
         margin-bottom: 0.5rem;
@@ -115,6 +117,7 @@ SHARED_CSS = """
 
     .dc-card {
         background: #1e293b;
+        color: #f1f5f9;
         border-radius: 10px;
         padding: 1rem 1.2rem;
         border: 1px solid #334155;

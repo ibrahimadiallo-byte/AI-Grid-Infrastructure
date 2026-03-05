@@ -75,6 +75,10 @@ _access_token: Optional[str] = None
 def _get_ercot_token() -> str:
     """Fetch an OAuth2 bearer token from ERCOT's B2C ROPC flow."""
     global _access_token
+    if not ERCOT_CLIENT_ID or ERCOT_CLIENT_ID == "YOUR_PUBLIC_CLIENT_ID":
+        # Don't try to auth if no client ID is provided
+        return ""
+
     resp = requests.post(
         ERCOT_TOKEN_URL,
         data={

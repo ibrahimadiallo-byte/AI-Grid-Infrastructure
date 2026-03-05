@@ -76,8 +76,12 @@ def render():
             unsafe_allow_html=True,
         )
 
-    # ── Header ──
-    st.markdown("## 🏔️ Maine Grid — ISO New England")
+    # ── Header with flag ──
+    col_title, col_img = st.columns([8, 1])
+    with col_title:
+        st.markdown("## 🏔️ Maine Grid — ISO New England")
+    with col_img:
+        st.image("assets/maine_flag.png", width=60)
     ts = snap.get("fetched_at", "")
     if ts:
         try:

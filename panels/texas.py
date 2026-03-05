@@ -72,7 +72,12 @@ def render():
         )
 
     # ── Header ──
-    st.markdown("## 🤠 Texas Grid — ERCOT")
+    # ── Header with flag ──
+    col_title, col_img = st.columns([8, 1])
+    with col_title:
+        st.markdown("## 🤠 Texas Grid — ERCOT")
+    with col_img:
+        st.image("assets/texas_flag.png", width=60)
     ts = snap.get("fetched_at", "")
     if ts:
         try:
