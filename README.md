@@ -1,5 +1,13 @@
 # Energy Grid Dashboard
 
+---
+
+## Screenshots
+
+### Grid Orchestrator
+
+![Grid Orchestrator](screenshots/GridOrchestrator.png)
+
 Real-time energy grid data from **ERCOT** (Texas) and **ISO-NE** (New England), served via a FastAPI backend and visualized in a Streamlit dashboard.
 
 ---
